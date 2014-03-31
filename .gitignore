@@ -13,9 +13,16 @@
 *.lai
 *.la
 *.a
-*.lib
 
 # Executables
 *.exe
 *.out
 *.app
+/src/Release
+/src/Debug
+/src/*.user
+/Debug
+/Release
+/ipch
+*.suo
+/*.opensdf
