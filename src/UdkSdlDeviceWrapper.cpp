@@ -5,16 +5,12 @@
 #include <SDL.h>
 #include <SDL_events.h>
 
-const int AXIS_SUPPORTED = 6;
-
-const int HAT_RESERVED_INDEX = 6;
 const int HAT_CENTER = 0;
 const int HAT_UP = 1;
 const int HAT_RIGHT = 2;
 const int HAT_DOWN = 3;
 const int HAT_LEFT = 4;
 
-const int BUTTON_START_INDEX = 7;
 const int BUTTON_UP = 0;
 const int BUTTON_DOWN = 1;
 
@@ -50,6 +46,7 @@ struct TArray
 struct SdlDeviceWrapper
 {
 	TArray<wchar_t*> Devices;
+	TArray<int> DeviceInputCounts;
 	TArray<int> DeviceData;
 };
 
@@ -72,8 +69,6 @@ extern "C"
 
 	_declspec(dllexport) void GetDevices(struct SdlDeviceWrapper* x)
 	{
-		x->DeviceData.Reallocate(0);
-
 		int numDevices = SDL_NumJoysticks();
 
 		x->Devices.Reallocate(numDevices);
@@ -101,71 +96,84 @@ extern "C"
 		return 1;
 	}
 
+	_declspec(dllexport) void GetDeviceInputCounts(struct SdlDeviceWrapper* x)
+	{
+		x->DeviceInputCounts.Reallocate(3);
+		x->DeviceInputCounts.Data[0] = SDL_JoystickNumAxes(device);
+		x->DeviceInputCounts.Data[1] = SDL_JoystickNumHats(device);
+		x->DeviceInputCounts.Data[2] = SDL_JoystickNumButtons(device);
+		//x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device); // Not supported yet.
+		return;
+	}
+
 	_declspec(dllexport) void PollDevice(struct SdlDeviceWrapper* x)
 	{
-		x->DeviceData.Reallocate(0);
-
 		int axisCount = SDL_JoystickNumAxes(device);
 		int hatCount = SDL_JoystickNumHats(device);
 		int buttonCount = SDL_JoystickNumButtons(device);
 		//int ballCount = SDL_JoystickNumBalls(device); // Not supported yet.
+
 		int deviceInputCount = (axisCount + hatCount + buttonCount);
 		
 		x->DeviceData.Reallocate(deviceInputCount);
 
-		SDL_JoystickUpdate(); // This may not be necessary.
+		for (int i = 0; i < deviceInputCount; i++)
+			x->DeviceData.Data[i] = 0;
+
+		int axisStartIndex = 0;
+		int hatStartIndex = axisCount;
+		int buttonStartIndex = hatCount;
+		//int ballStartIndex = buttonCount;; // Not supported yet.
+
+		//SDL_JoystickUpdate(); // This may not be necessary.
 
 		while (SDL_PollEvent(&event))
 		{
 			if (event.type == SDL_JOYAXISMOTION)
 			{
-				for (int i = 0; i < axisCount; i++)
-				{
+				for (int i = axisStartIndex; i < axisCount; i++)
 					if (event.jaxis.axis == i && event.jaxis.value != x->DeviceData.Data[i])
 						x->DeviceData.Data[i] = event.jaxis.value;
-
-					if (i >= (AXIS_SUPPORTED - 1))
-						break;
-				}
 			}
 
 			if (event.type == SDL_JOYHATMOTION)
 			{
+				int hatIndex = (event.jhat.hat + hatStartIndex);
 				int hatEngaged = 0;
 
 				if (event.jhat.value & SDL_HAT_UP)
 				{
-					x->DeviceData.Data[HAT_RESERVED_INDEX] = HAT_UP;
+					x->DeviceData.Data[hatIndex] = HAT_UP;
 					hatEngaged = 1;
 				}
 
 				if (event.jhat.value & SDL_HAT_RIGHT)
 				{
-					x->DeviceData.Data[HAT_RESERVED_INDEX] = HAT_RIGHT;
+					x->DeviceData.Data[hatIndex] = HAT_RIGHT;
 					hatEngaged = 1;
 				}
 
 				if (event.jhat.value & SDL_HAT_DOWN)
 				{
-					x->DeviceData.Data[HAT_RESERVED_INDEX] = HAT_DOWN;
+					x->DeviceData.Data[hatIndex] = HAT_DOWN;
 					hatEngaged = 1;
 				}
 
 				if (event.jhat.value & SDL_HAT_LEFT)
 				{
-					x->DeviceData.Data[HAT_RESERVED_INDEX] = HAT_LEFT;
+					x->DeviceData.Data[hatIndex] = HAT_LEFT;
 					hatEngaged = 1;
 				}
 
 				if (hatEngaged == 0 && ((event.jhat.value & SDL_HAT_CENTERED) == SDL_HAT_CENTERED))
-					x->DeviceData.Data[HAT_RESERVED_INDEX] = HAT_CENTER;
+					x->DeviceData.Data[hatIndex] = HAT_CENTER;
 			}
 
 			if (event.type == SDL_JOYBUTTONDOWN)
-				x->DeviceData.Data[(event.jbutton.button + BUTTON_START_INDEX)] = BUTTON_DOWN;
+				x->DeviceData.Data[(event.jbutton.button + buttonStartIndex)] = BUTTON_DOWN;
 
 			if (event.type == SDL_JOYBUTTONUP)
-				x->DeviceData.Data[(event.jbutton.button + BUTTON_START_INDEX)] = BUTTON_UP;
+				x->DeviceData.Data[(event.jbutton.button + buttonStartIndex)] = BUTTON_UP;
 
 			// Not supported yet. Need to decide how to index x and y values.
 			//if (event.type == SDL_JOYBALLMOTION)
