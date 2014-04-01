@@ -5,14 +5,14 @@
 #include <SDL.h>
 #include <SDL_events.h>
 
-const int HAT_CENTER = 0;
-const int HAT_UP = 1;
-const int HAT_RIGHT = 2;
-const int HAT_DOWN = 3;
-const int HAT_LEFT = 4;
+const int HAT_CENTER = 1;
+const int HAT_UP = 2;
+const int HAT_RIGHT = 3;
+const int HAT_DOWN = 4;
+const int HAT_LEFT = 5;
 
-const int BUTTON_UP = 0;
-const int BUTTON_DOWN = 1;
+const int BUTTON_UP = 1;
+const int BUTTON_DOWN = 2;
 
 SDL_Joystick* device = NULL;
 SDL_Event event;
@@ -38,16 +38,17 @@ struct TArray
 		}
 	}
 
-	private:
-		int ArrayNum;
-		int ArrayMax;
+	int ArrayNum;
+	int ArrayMax;
 };
 
 struct SdlDeviceWrapper
 {
-	TArray<wchar_t*> Devices;
+	TArray<wchar_t> Devices;
 	TArray<int> DeviceInputCounts;
-	TArray<int> DeviceData;
+	TArray<int> AxisData;
+	TArray<int> HatData;
+	TArray<int> ButtonData;
 };
 
 extern "C"
@@ -65,8 +66,12 @@ extern "C"
 	__declspec(dllexport) void DLLBindInit(FDLLBindInitData* InitData)
 	{
 		ReallocFunctionPtr = InitData->ReallocFunctionPtr;
+
+		SDL_Init(SDL_INIT_JOYSTICK);
+		atexit(SDL_Quit);
 	}
 
+	// TODO: I can't get this to work yet. It always prints out an empty string in UDK.
 	_declspec(dllexport) void GetDevices(struct SdlDeviceWrapper* x)
 	{
 		int numDevices = SDL_NumJoysticks();
@@ -74,15 +79,33 @@ extern "C"
 		x->Devices.Reallocate(numDevices);
 
 		for (int i = 0; i < numDevices; i++)
-		{ 
-			const char* originalDeviceName = SDL_JoystickNameForIndex(i);
+		{
+			const char* deviceName = SDL_JoystickNameForIndex(i);
 
-			size_t newsize = (strlen(originalDeviceName) + 1);
-			wchar_t * deviceName = new wchar_t[newsize];
-			size_t convertedChars = 0;
-			mbstowcs_s(&convertedChars, deviceName, newsize, originalDeviceName, _TRUNCATE);
+			if (deviceName == NULL)
+			{
+				if (SDL_IsGameController(i))
+				{
+					char* actualDeviceName = SDL_GameControllerMappingForGUID(SDL_JoystickGetDeviceGUID(i));
+					SDL_free(actualDeviceName);
+					deviceName = actualDeviceName;
+				}
+				else
+				{
+					char* deviceNameAsGuid;
+					SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i), deviceNameAsGuid, 64);
+					deviceName = deviceNameAsGuid;
+				}
+			}
 
-			x->Devices.Data[i] = deviceName;
+			if (deviceName != NULL)
+			{
+				size_t newsize = (strlen(deviceName) + 1);
+				wchar_t* deviceNameAsString = new wchar_t[newsize];
+				mbstowcs_s(NULL, deviceNameAsString, newsize, deviceName, _TRUNCATE);
+
+				x->Devices.Data[i] = (wchar_t) deviceNameAsString;
+			}
 		}
 
 		return;
@@ -90,8 +113,6 @@ extern "C"
 
 	_declspec(dllexport) int InitDevice(int deviceIndex)
 	{
-		SDL_Init(SDL_INIT_JOYSTICK);
-		atexit(SDL_Quit);
 		device = SDL_JoystickOpen(deviceIndex);
 		return 1;
 	}
@@ -102,7 +123,7 @@ extern "C"
 		x->DeviceInputCounts.Data[0] = SDL_JoystickNumAxes(device);
 		x->DeviceInputCounts.Data[1] = SDL_JoystickNumHats(device);
 		x->DeviceInputCounts.Data[2] = SDL_JoystickNumButtons(device);
-		//x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device); // Not supported yet.
+		//x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device); // TODO: Not supported yet.
 		return;
 	}
 
@@ -111,71 +132,92 @@ extern "C"
 		int axisCount = SDL_JoystickNumAxes(device);
 		int hatCount = SDL_JoystickNumHats(device);
 		int buttonCount = SDL_JoystickNumButtons(device);
-		//int ballCount = SDL_JoystickNumBalls(device); // Not supported yet.
+		//int ballCount = SDL_JoystickNumBalls(device); // TODO: Not supported yet.
 
-		int deviceInputCount = (axisCount + hatCount + buttonCount);
-		
-		x->DeviceData.Reallocate(deviceInputCount);
+		if (axisCount > 0 && x->AxisData.ArrayMax == 0)
+		{
+			x->AxisData.Reallocate(axisCount + 1);
 
-		for (int i = 0; i < deviceInputCount; i++)
-			x->DeviceData.Data[i] = 0;
+			for (int i = 0; i <= axisCount; i++)
+				x->AxisData.Data[i] = 0;
+		}
 
-		int axisStartIndex = 0;
-		int hatStartIndex = axisCount;
-		int buttonStartIndex = hatCount;
-		//int ballStartIndex = buttonCount;; // Not supported yet.
+		if (hatCount > 0 && x->HatData.ArrayMax == 0)
+		{
+			x->HatData.Reallocate(hatCount + 1);
 
-		//SDL_JoystickUpdate(); // This may not be necessary.
+			for (int i = 0; i <= hatCount; i++)
+				x->HatData.Data[i] = 0;
+		}
+
+		if (buttonCount > 0 && x->ButtonData.ArrayMax == 0)
+		{
+			x->ButtonData.Reallocate(buttonCount + 1);
+
+			for (int i = 0; i <= buttonCount; i++)
+				x->ButtonData.Data[i] = 0;
+		}
+
+		SDL_JoystickUpdate(); // Note: This may not be necessary.
 
 		while (SDL_PollEvent(&event))
 		{
 			if (event.type == SDL_JOYAXISMOTION)
 			{
-				for (int i = axisStartIndex; i < axisCount; i++)
-					if (event.jaxis.axis == i && event.jaxis.value != x->DeviceData.Data[i])
-						x->DeviceData.Data[i] = event.jaxis.value;
+				// Note: We set 0 to 1, since the array values default to 0. The UDK scripts should only read values that do not equal 0.
+				// If we didn't handle 0, or ignore 0 on the UDK side, then the UDK script would be flooded with 0 values. This gets around the issue.
+				for (int i = 0; i <= axisCount; i++)
+					if (event.jaxis.axis == i && event.jaxis.value != x->AxisData.Data[i])
+						x->AxisData.Data[i] = (event.jaxis.value == 0) ? 1 : event.jaxis.value;
 			}
 
 			if (event.type == SDL_JOYHATMOTION)
 			{
-				int hatIndex = (event.jhat.hat + hatStartIndex);
-				int hatEngaged = 0;
-
-				if (event.jhat.value & SDL_HAT_UP)
+				for (int i = 0; i <= hatCount; i++)
 				{
-					x->DeviceData.Data[hatIndex] = HAT_UP;
-					hatEngaged = 1;
-				}
+					int hatIndex = event.jhat.hat;
 
-				if (event.jhat.value & SDL_HAT_RIGHT)
-				{
-					x->DeviceData.Data[hatIndex] = HAT_RIGHT;
-					hatEngaged = 1;
-				}
+					if (hatIndex != i)
+						continue;
 
-				if (event.jhat.value & SDL_HAT_DOWN)
-				{
-					x->DeviceData.Data[hatIndex] = HAT_DOWN;
-					hatEngaged = 1;
-				}
+					int hatEngaged = 0;
 
-				if (event.jhat.value & SDL_HAT_LEFT)
-				{
-					x->DeviceData.Data[hatIndex] = HAT_LEFT;
-					hatEngaged = 1;
-				}
+					if (event.jhat.value & SDL_HAT_UP)
+					{
+						x->HatData.Data[hatIndex] = HAT_UP;
+						hatEngaged = 1;
+					}
 
-				if (hatEngaged == 0 && ((event.jhat.value & SDL_HAT_CENTERED) == SDL_HAT_CENTERED))
-					x->DeviceData.Data[hatIndex] = HAT_CENTER;
+					if (event.jhat.value & SDL_HAT_RIGHT)
+					{
+						x->HatData.Data[hatIndex] = HAT_RIGHT;
+						hatEngaged = 1;
+					}
+
+					if (event.jhat.value & SDL_HAT_DOWN)
+					{
+						x->HatData.Data[hatIndex] = HAT_DOWN;
+						hatEngaged = 1;
+					}
+
+					if (event.jhat.value & SDL_HAT_LEFT)
+					{
+						x->HatData.Data[hatIndex] = HAT_LEFT;
+						hatEngaged = 1;
+					}
+
+					if (hatEngaged == 0 && ((event.jhat.value & SDL_HAT_CENTERED) == SDL_HAT_CENTERED))
+						x->HatData.Data[hatIndex] = HAT_CENTER;
+				}
 			}
 
 			if (event.type == SDL_JOYBUTTONDOWN)
-				x->DeviceData.Data[(event.jbutton.button + buttonStartIndex)] = BUTTON_DOWN;
+				x->ButtonData.Data[event.jbutton.button] = BUTTON_DOWN;
 
 			if (event.type == SDL_JOYBUTTONUP)
-				x->DeviceData.Data[(event.jbutton.button + buttonStartIndex)] = BUTTON_UP;
+				x->ButtonData.Data[event.jbutton.button] = BUTTON_UP;
 
-			// Not supported yet. Need to decide how to index x and y values.
+			// TODO: Not supported yet.
 			//if (event.type == SDL_JOYBALLMOTION)
 			//{
 				//int ballStartIndex = (buttonCount + 1);
