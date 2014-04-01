@@ -70,10 +70,10 @@ simulated Event PostBeginPlay()
 simulated event PlayerTick(float DeltaTime)
 {
 	local SdlDeviceWrapper wrapper;
-	local int axisCounter;
-	local int hatCounter;
-	local int buttonCounter;
-	local int ballCounter;
+	local int axisIndex;
+	local int hatIndex;
+	local int buttonIndex;
+	local int ballIndex;
 
 	Super.PlayerTick(DeltaTime);
 
@@ -84,12 +84,14 @@ simulated event PlayerTick(float DeltaTime)
 		PollDevice(wrapper);
 
 		// Axis values will need user-based sensitivity and dead zone ranges applied (later).
-		// We don't want an axis value of 0, because the array values default to 0.
+		// We don't want an axis value of 0, because the array values (int) default to 0.
 		// If the device reports 0, the wrapper overrides it to 1 (which is close enough, given the range of joystick axis values).
-		for (axisCounter = 0; axisCounter < AxisCount; axisCounter++)
+		// Why? Well, if this isn't done, the wrapper will output 0 non-stop, until an SDL event is triggered. We don't want that.
+		// That's why we check to make sure the value != 0. We're stuck with integer types, and their default value (0). Not much choice.
+		for (axisIndex = 0; axisIndex < AxisCount; axisIndex++)
 		{
-			if (wrapper.AxisData[axisCounter] != 0)
-				`log("====== Axis " $ axisCounter $ " ======: " $ wrapper.AxisData[axisCounter]);
+			if (wrapper.AxisData[axisIndex] != 0)
+				`log("====== Axis " $ axisIndex $ " ======: " $ wrapper.AxisData[axisIndex]);
 		}
 
 		// HAT_CENTER = 1
@@ -98,30 +100,30 @@ simulated event PlayerTick(float DeltaTime)
 		// HAT_DOWN = 4
 		// HAT_LEFT = 5
 		// We don't want a hat value of 0, because the array values default to 0.
-		for (hatCounter = 0; hatCounter < HatCount; hatCounter++)
+		for (hatIndex = 0; hatIndex < HatCount; hatIndex++)
 		{
-			if (wrapper.HatData[hatCounter] > 0)
-				`log("====== Hat " $ hatCounter $ " ======: " $ wrapper.HatData[hatCounter]);
+			if (wrapper.HatData[hatIndex] > 0)
+				`log("====== Hat " $ hatIndex $ " ======: " $ wrapper.HatData[hatIndex]);
 		}
 
 		// BUTTON_UP = 1
 		// BUTTON_DOWN = 2
-		// Same as hats. The array values default to 0.
-		for (buttonCounter = 0; buttonCounter < ButtonCount; buttonCounter++)
+		// Same as above. The array values default to 0.
+		for (buttonIndex = 0; buttonIndex < ButtonCount; buttonIndex++)
 		{
-			if (wrapper.ButtonData[buttonCounter] > 0)
-				`log("====== Button " $ buttonCounter $ " ======: " $ wrapper.ButtonData[buttonCounter]);
+			if (wrapper.ButtonData[buttonIndex] > 0)
+				`log("====== Button " $ buttonIndex $ " ======: " $ wrapper.ButtonData[buttonIndex]);
 		}
 
 		// Every X and Y index are for the same ball input.
 		// Same as above. The array values default to 0.
-		for (ballCounter = 0; ballCounter < BallCount; ballCounter++)
+		for (ballIndex = 0; ballIndex < BallCount; ballIndex++)
 		{
-			if (wrapper.BallDataForX[ballCounter] > 0)
-				`log("====== Ball X " $ ballCounter $ " ======: " $ wrapper.BallDataForX[ballCounter]);
+			if (wrapper.BallDataForX[ballIndex] > 0)
+				`log("====== Ball X " $ ballIndex $ " ======: " $ wrapper.BallDataForX[ballIndex]);
 
-			if (wrapper.BallDataForY[ballCounter] > 0)
-				`log("====== Ball Y " $ ballCounter $ " ======: " $ wrapper.BallDataForY[ballCounter]);
+			if (wrapper.BallDataForY[ballIndex] > 0)
+				`log("====== Ball Y " $ ballIndex $ " ======: " $ wrapper.BallDataForY[ballIndex]);
 		}
 	}
 }
