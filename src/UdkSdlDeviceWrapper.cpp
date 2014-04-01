@@ -190,7 +190,6 @@ extern "C"
 			if (event.type == SDL_JOYHATMOTION)
 			{
 				int hatIndex = event.jhat.hat;
-
 				int hatEngaged = 0;
 
 				if (event.jhat.value & SDL_HAT_UP)
