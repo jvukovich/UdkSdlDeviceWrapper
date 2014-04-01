@@ -178,51 +178,47 @@ extern "C"
 		{
 			if (event.type == SDL_JOYAXISMOTION)
 			{
+				int axisIndex = event.jaxis.axis;
+				int axisValue = event.jaxis.value;
+
 				// Note: We set 0 to 1, since the array values default to 0. The UDK scripts should only read values that do not equal 0.
 				// If we didn't handle 0, or ignore 0 on the UDK side, then the UDK script would be flooded with 0 values. This gets around the issue.
-				for (int i = 0; i <= axisCount; i++)
-					if (event.jaxis.axis == i && event.jaxis.value != x->AxisData.Data[i])
-						x->AxisData.Data[i] = (event.jaxis.value == 0) ? 1 : event.jaxis.value;
+				if (x->AxisData.Data[axisIndex] != axisValue)
+					x->AxisData.Data[axisIndex] = (axisValue == 0) ? 1 : axisValue;
 			}
 
 			if (event.type == SDL_JOYHATMOTION)
 			{
-				for (int i = 0; i <= hatCount; i++)
+				int hatIndex = event.jhat.hat;
+
+				int hatEngaged = 0;
+
+				if (event.jhat.value & SDL_HAT_UP)
 				{
-					int hatIndex = event.jhat.hat;
-
-					if (hatIndex != i)
-						continue;
-
-					int hatEngaged = 0;
-
-					if (event.jhat.value & SDL_HAT_UP)
-					{
-						x->HatData.Data[hatIndex] = HAT_UP;
-						hatEngaged = 1;
-					}
-
-					if (event.jhat.value & SDL_HAT_RIGHT)
-					{
-						x->HatData.Data[hatIndex] = HAT_RIGHT;
-						hatEngaged = 1;
-					}
-
-					if (event.jhat.value & SDL_HAT_DOWN)
-					{
-						x->HatData.Data[hatIndex] = HAT_DOWN;
-						hatEngaged = 1;
-					}
-
-					if (event.jhat.value & SDL_HAT_LEFT)
-					{
-						x->HatData.Data[hatIndex] = HAT_LEFT;
-						hatEngaged = 1;
-					}
-
-					if (hatEngaged == 0 && ((event.jhat.value & SDL_HAT_CENTERED) == SDL_HAT_CENTERED))
-						x->HatData.Data[hatIndex] = HAT_CENTER;
+					x->HatData.Data[hatIndex] = HAT_UP;
+					hatEngaged = 1;
 				}
+
+				if (event.jhat.value & SDL_HAT_RIGHT)
+				{
+					x->HatData.Data[hatIndex] = HAT_RIGHT;
+					hatEngaged = 1;
+				}
+
+				if (event.jhat.value & SDL_HAT_DOWN)
+				{
+					x->HatData.Data[hatIndex] = HAT_DOWN;
+					hatEngaged = 1;
+				}
+
+				if (event.jhat.value & SDL_HAT_LEFT)
+				{
+					x->HatData.Data[hatIndex] = HAT_LEFT;
+					hatEngaged = 1;
+				}
+
+				if (hatEngaged == 0 && ((event.jhat.value & SDL_HAT_CENTERED) == SDL_HAT_CENTERED))
+					x->HatData.Data[hatIndex] = HAT_CENTER;
 			}
 
 			if (event.type == SDL_JOYBUTTONDOWN)
