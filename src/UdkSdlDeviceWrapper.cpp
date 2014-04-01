@@ -49,6 +49,8 @@ struct SdlDeviceWrapper
 	TArray<int> AxisData;
 	TArray<int> HatData;
 	TArray<int> ButtonData;
+	TArray<int> BallDataForX;
+	TArray<int> BallDataForY;
 };
 
 extern "C"
@@ -119,11 +121,11 @@ extern "C"
 
 	_declspec(dllexport) void GetDeviceInputCounts(struct SdlDeviceWrapper* x)
 	{
-		x->DeviceInputCounts.Reallocate(3);
+		x->DeviceInputCounts.Reallocate(4);
 		x->DeviceInputCounts.Data[0] = SDL_JoystickNumAxes(device);
 		x->DeviceInputCounts.Data[1] = SDL_JoystickNumHats(device);
 		x->DeviceInputCounts.Data[2] = SDL_JoystickNumButtons(device);
-		//x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device); // TODO: Not supported yet.
+		x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device);
 		return;
 	}
 
@@ -132,7 +134,7 @@ extern "C"
 		int axisCount = SDL_JoystickNumAxes(device);
 		int hatCount = SDL_JoystickNumHats(device);
 		int buttonCount = SDL_JoystickNumButtons(device);
-		//int ballCount = SDL_JoystickNumBalls(device); // TODO: Not supported yet.
+		int ballCount = SDL_JoystickNumBalls(device);
 
 		if (axisCount > 0 && x->AxisData.ArrayMax == 0)
 		{
@@ -156,6 +158,18 @@ extern "C"
 
 			for (int i = 0; i <= buttonCount; i++)
 				x->ButtonData.Data[i] = 0;
+		}
+
+		if (ballCount > 0 && x->BallDataForX.ArrayMax == 0 && x->BallDataForY.ArrayMax == 0)
+		{
+			x->BallDataForX.Reallocate(ballCount + 1);
+			x->BallDataForY.Reallocate(ballCount + 1);
+
+			for (int i = 0; i <= ballCount; i++)
+			{
+				x->BallDataForX.Data[i] = 0;
+				x->BallDataForY.Data[i] = 0;
+			}
 		}
 
 		SDL_JoystickUpdate(); // Note: This may not be necessary.
@@ -217,13 +231,11 @@ extern "C"
 			if (event.type == SDL_JOYBUTTONUP)
 				x->ButtonData.Data[event.jbutton.button] = BUTTON_UP;
 
-			// TODO: Not supported yet.
-			//if (event.type == SDL_JOYBALLMOTION)
-			//{
-				//int ballStartIndex = (buttonCount + 1);
-				//x->DeviceData.Data[(event.jball.ball + ballStartIndex)] = event.jball.xrel;
-				// event.jball.yrel
-			//}
+			if (event.type == SDL_JOYBALLMOTION)
+			{
+				x->BallDataForX.Data[event.jball.ball] = event.jball.xrel;
+				x->BallDataForY.Data[event.jball.ball] = event.jball.yrel;
+			}
 		}
 
 		return;
