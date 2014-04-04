@@ -48,7 +48,8 @@ simulated Event PostBeginPlay()
 		`log("====== Device Name on 0 ====== : " $ GetDeviceName(deviceIndex));
 
 		deviceIndex = deviceIndex + 1;
-	} until(deviceIndex == numberOfDevices);
+	}
+	until (deviceIndex == numberOfDevices);
 
 	// Just grab the first device for now (testing).
 	InitDevice(0);
