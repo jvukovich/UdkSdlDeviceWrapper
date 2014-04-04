@@ -44,7 +44,6 @@ struct TArray
 
 struct SdlDeviceWrapper
 {
-	TArray<wchar_t> Devices;
 	TArray<int> DeviceInputCounts;
 	TArray<int> AxisData;
 	TArray<int> HatData;
@@ -73,44 +72,39 @@ extern "C"
 		atexit(SDL_Quit);
 	}
 
-	// TODO: I can't get this to work yet. It always prints out an empty string in UDK.
-	_declspec(dllexport) void GetDevices(struct SdlDeviceWrapper* x)
+	_declspec(dllexport) int GetNumberOfDevices()
 	{
-		int numDevices = SDL_NumJoysticks();
+		return SDL_NumJoysticks();
+	}
 
-		x->Devices.Reallocate(numDevices);
+	_declspec(dllexport) wchar_t* GetDeviceName(int deviceIndex)
+	{
+		const char* deviceName = SDL_JoystickNameForIndex(deviceIndex);
 
-		for (int i = 0; i < numDevices; i++)
+		if (deviceName == NULL)
 		{
-			const char* deviceName = SDL_JoystickNameForIndex(i);
-
-			if (deviceName == NULL)
+			if (SDL_IsGameController(deviceIndex))
 			{
-				if (SDL_IsGameController(i))
-				{
-					char* actualDeviceName = SDL_GameControllerMappingForGUID(SDL_JoystickGetDeviceGUID(i));
-					SDL_free(actualDeviceName);
-					deviceName = actualDeviceName;
-				}
-				else
-				{
-					char* deviceNameAsGuid;
-					SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i), deviceNameAsGuid, 64);
-					deviceName = deviceNameAsGuid;
-				}
+				char* actualDeviceName = SDL_GameControllerMappingForGUID(SDL_JoystickGetDeviceGUID(deviceIndex));
+				SDL_free(actualDeviceName);
+				deviceName = actualDeviceName;
 			}
-
-			if (deviceName != NULL)
+			else
 			{
-				size_t newsize = (strlen(deviceName) + 1);
-				wchar_t* deviceNameAsString = new wchar_t[newsize];
-				mbstowcs_s(NULL, deviceNameAsString, newsize, deviceName, _TRUNCATE);
-
-				x->Devices.Data[i] = (wchar_t) deviceNameAsString;
+				char* deviceNameAsGuid;
+				SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(deviceIndex), deviceNameAsGuid, 64);
+				deviceName = deviceNameAsGuid;
 			}
 		}
 
-		return;
+		if (deviceName == NULL)
+			deviceName = "";
+
+		size_t deviceNameLength = (strlen(deviceName) + 1);
+		wchar_t* deviceNameStr = new wchar_t[deviceNameLength];
+		mbstowcs_s(NULL, deviceNameStr, deviceNameLength, deviceName, _TRUNCATE);
+
+		return deviceNameStr;
 	}
 
 	_declspec(dllexport) int InitDevice(int deviceIndex)
@@ -228,8 +222,16 @@ extern "C"
 
 			if (event.type == SDL_JOYBALLMOTION)
 			{
-				x->BallDataForX.Data[event.jball.ball] = event.jball.xrel;
-				x->BallDataForY.Data[event.jball.ball] = event.jball.yrel;
+				int ballIndex = event.jball.ball;
+				int ballXVal = event.jball.xrel;
+				int ballYVal = event.jball.yrel;
+
+				// Same deal as axis data.
+				if (x->BallDataForX.Data[ballIndex] != ballXVal)
+					x->BallDataForX.Data[ballIndex] = (ballXVal == 0) ? 1 : ballXVal;
+
+				if (x->BallDataForY.Data[ballIndex] != ballYVal)
+					x->BallDataForY.Data[ballIndex] = (ballYVal == 0) ? 1 : ballYVal;
 			}
 		}
 
@@ -243,53 +245,3 @@ extern "C"
 		return;
 	}
 }
-
-// This was my original code for testing output via a console application (exe).
-// If we also want to support "ball" motion, we can do it (see below).
-//int main(int argc, char *argv[])
-//{
-//	initJoystick();
-//
-//	while (true)
-//	{
-//		while (SDL_PollEvent(&event))
-//		{
-//			switch (event.type)
-//			{
-//				case SDL_JOYAXISMOTION:
-//					// 0 == bank
-//					// 1 == look up/down
-//					// 2 == twist
-//					// 3 == throttle
-//					printf("%d axis %d value %d\n", event.jaxis.which, event.jaxis.axis, event.jaxis.value);
-//					break;
-//				case SDL_JOYHATMOTION:
-//					printf("hat %d value 0x%02x\n", event.jhat.hat, event.jhat.value);
-//					if (event.jhat.value & SDL_HAT_UP)
-//						printf(" -- hat up");
-//					if (event.jhat.value & SDL_HAT_DOWN)
-//						printf(" -- hat down");
-//					if (event.jhat.value & SDL_HAT_LEFT)
-//						printf(" -- hat left");
-//					if (event.jhat.value & SDL_HAT_RIGHT)
-//						printf(" -- hat right");
-//					break;
-//				case SDL_JOYBUTTONDOWN:
-//					printf("button %d value %d down\n", event.jbutton.which, event.jbutton.button);
-//					break;
-//				case SDL_JOYBUTTONUP:
-//					printf("button %d value %d up\n", event.jbutton.which, event.jbutton.button);
-//					break;
-//				case SDL_JOYBALLMOTION:
-//					printf("ball %d motion: (%d, %d)\n", event.jball.ball, event.jball.xrel, event.jball.yrel);
-//					break;
-//				default:
-//					break;
-//			}
-//
-//			break;
-//		}
-//	}
-//
-//	return 0;
-//}
