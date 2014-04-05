@@ -45,7 +45,7 @@ simulated Event PostBeginPlay()
 		if (deviceName == "")
 			break;
 
-		`log("====== Device Name on 0 ====== : " $ GetDeviceName(deviceIndex));
+		`log("====== Device Name on " $ deviceIndex $ " ====== : " $ GetDeviceName(deviceIndex));
 
 		deviceIndex = deviceIndex + 1;
 	}
