@@ -1,7 +1,6 @@
 class MyPlayerController extends UTPlayerController config(MyPlayerInput) DLLBind(UdkSdlDeviceWrapper);
 
 struct SdlDeviceWrapper {
-	var array<int> DeviceInputCounts;
 	var array<int> AxisData;
 	var array<int> HatData;
 	var array<int> ButtonData;
@@ -18,14 +17,15 @@ var int SensitivityThrottle;
 dllimport final function int GetNumberOfDevices();
 dllimport final function string GetDeviceName(int deviceIndex);
 dllimport final function int InitDevice(int deviceIndex);
-dllimport final function GetDevices(out SdlDeviceWrapper wrapper);
-dllimport final function GetDeviceInputCounts(out SdlDeviceWrapper wrapper);
+dllimport final function int GetAxisCount();
+dllimport final function int GetHatCount();
+dllimport final function int GetButtonCount();
+dllimport final function int GetBallCount();
 dllimport final function PollDevice(out SdlDeviceWrapper wrapper);
 dllimport final function ReleaseDevice();
 
 simulated Event PostBeginPlay()
 {
-	local SdlDeviceWrapper wrapper;
 	local int numberOfDevices;
 	local int deviceIndex;
 	local string deviceName;
@@ -35,7 +35,7 @@ simulated Event PostBeginPlay()
 	deviceIndex = 0;
 	numberOfDevices = GetNumberOfDevices();
 
-	`log("====== # of devices ====== : " $ numberOfDevices);
+	`log("====== # of Devices ====== : " $ numberOfDevices);
 
 	// Prints out a list of available devices.
 	do
@@ -54,36 +54,16 @@ simulated Event PostBeginPlay()
 	// Just grab the first device for now (testing).
 	InitDevice(0);
 
-	// InitDevice() must be invoked first. Populates wrapper.DeviceInputCounts.
-	GetDeviceInputCounts(wrapper);
+	// InitDevice(deviceIndex) must be called first, before any of these methods will work. Otherwise, they will always return 0.
+	AxisCount = GetAxisCount();
+	HatCount = GetHatCount();
+	ButtonCount = GetButtonCount();
+	BallCount = GetBallCount();
 
-	// First index for axis count.
-	if (wrapper.DeviceInputCounts[0] > 0)
-	{
-		AxisCount = wrapper.DeviceInputCounts[0];
-		//`log("====== Axis Count ====== : " $ AxisCount);
-	}
-
-	// Second index for hat count.
-	if (wrapper.DeviceInputCounts[1] > 0)
-	{
-		HatCount = wrapper.DeviceInputCounts[1];
-		//`log("====== Hat Count ====== : " $ HatCount);
-	}
-
-	// Third index for button count.
-	if (wrapper.DeviceInputCounts[2] > 0)
-	{
-		ButtonCount = wrapper.DeviceInputCounts[2];
-		//`log("====== Button Count ====== : " $ ButtonCount);
-	}
-
-	// Fourth index for ball count.
-	if (wrapper.DeviceInputCounts[3] > 0)
-	{
-		BallCount = wrapper.DeviceInputCounts[3];
-		//`log("====== Ball Count ====== : " $ BallCount);
-	}
+	`log("====== Axis Count ====== : " $ AxisCount);
+	`log("====== Hat Count ====== : " $ HatCount);
+	`log("====== Button Count ====== : " $ ButtonCount);
+	`log("====== Ball Count ====== : " $ BallCount);
 }
 
 simulated event PlayerTick(float DeltaTime)
@@ -109,8 +89,8 @@ simulated event PlayerTick(float DeltaTime)
 		// That's why we check to make sure the value != 0. We're stuck with integer types, and their default value (0). Not much choice.
 		for (axisIndex = 0; axisIndex < AxisCount; axisIndex++)
 		{
-			//if (wrapper.AxisData[axisIndex] != 0)
-				//`log("====== Axis " $ axisIndex $ " ======: " $ wrapper.AxisData[axisIndex]);
+			if (wrapper.AxisData[axisIndex] != 0)
+				`log("====== Axis " $ axisIndex $ " ======: " $ wrapper.AxisData[axisIndex]);
 		}
 
 		// HAT_CENTER = 1

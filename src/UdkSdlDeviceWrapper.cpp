@@ -44,7 +44,6 @@ struct TArray
 
 struct SdlDeviceWrapper
 {
-	TArray<int> DeviceInputCounts;
 	TArray<int> AxisData;
 	TArray<int> HatData;
 	TArray<int> ButtonData;
@@ -113,18 +112,43 @@ extern "C"
 		return 1;
 	}
 
-	_declspec(dllexport) void GetDeviceInputCounts(struct SdlDeviceWrapper* x)
+	_declspec(dllexport) int GetAxisCount()
 	{
-		x->DeviceInputCounts.Reallocate(4);
-		x->DeviceInputCounts.Data[0] = SDL_JoystickNumAxes(device);
-		x->DeviceInputCounts.Data[1] = SDL_JoystickNumHats(device);
-		x->DeviceInputCounts.Data[2] = SDL_JoystickNumButtons(device);
-		x->DeviceInputCounts.Data[3] = SDL_JoystickNumBalls(device);
-		return;
+		if (device == NULL)
+			return 0;
+
+		return SDL_JoystickNumAxes(device);
+	}
+
+	_declspec(dllexport) int GetHatCount()
+	{
+		if (device == NULL)
+			return 0;
+
+		return SDL_JoystickNumHats(device);
+	}
+
+	_declspec(dllexport) int GetButtonCount()
+	{
+		if (device == NULL)
+			return 0;
+
+		return SDL_JoystickNumButtons(device);
+	}
+
+	_declspec(dllexport) int GetBallCount()
+	{
+		if (device == NULL)
+			return 0;
+
+		return SDL_JoystickNumBalls(device);
 	}
 
 	_declspec(dllexport) void PollDevice(struct SdlDeviceWrapper* x)
 	{
+		if (device == NULL)
+			return;
+
 		int axisCount = SDL_JoystickNumAxes(device);
 		int hatCount = SDL_JoystickNumHats(device);
 		int buttonCount = SDL_JoystickNumButtons(device);
