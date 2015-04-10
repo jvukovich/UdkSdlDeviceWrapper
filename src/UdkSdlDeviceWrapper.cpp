@@ -194,17 +194,6 @@ extern "C"
 
 		while (SDL_PollEvent(&event))
 		{
-			if (event.type == SDL_JOYAXISMOTION)
-			{
-				int axisIndex = event.jaxis.axis;
-				int axisValue = event.jaxis.value;
-
-				// Note: We set 0 to 1, since the array values default to 0. The UDK scripts should only read values that do not equal 0.
-				// If we didn't handle 0, or ignore 0 on the UDK side, then the UDK script would be flooded with 0 values. This gets around the issue.
-				if (x->AxisData.Data[axisIndex] != axisValue)
-					x->AxisData.Data[axisIndex] = (axisValue == 0) ? 1 : axisValue;
-			}
-
 			if (event.type == SDL_JOYHATMOTION)
 			{
 				int hatIndex = event.jhat.hat;
@@ -256,6 +245,17 @@ extern "C"
 
 				if (x->BallDataForY.Data[ballIndex] != ballYVal)
 					x->BallDataForY.Data[ballIndex] = (ballYVal == 0) ? 1 : ballYVal;
+			}
+
+			if (event.type == SDL_JOYAXISMOTION)
+			{
+				int axisIndex = event.jaxis.axis;
+				int axisValue = event.jaxis.value;
+
+				// Note: We set 0 to 1, since the array values default to 0. The UDK scripts should only read values that do not equal 0.
+				// If we didn't handle 0, or ignore 0 on the UDK side, then the UDK script would be flooded with 0 values. This gets around the issue.
+				if (x->AxisData.Data[axisIndex] != axisValue)
+					x->AxisData.Data[axisIndex] = (axisValue == 0) ? 1 : axisValue;
 			}
 		}
 
